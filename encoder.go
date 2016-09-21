@@ -1,6 +1,7 @@
 package zaptextenc
 
 import (
+	"bytes"
 	"io"
 	"math"
 	"strconv"
@@ -15,25 +16,25 @@ type Option interface {
 }
 
 // TimeFormatter is a func used to render log entry time
-type TimeFormatter func(io.Writer, time.Time)
+type TimeFormatter func(*bytes.Buffer, time.Time)
 
 // LevelFormatter is a func used to render log entry level
-type LevelFormatter func(io.Writer, zap.Level)
+type LevelFormatter func(*bytes.Buffer, zap.Level)
 
 // MessageFormatter is a func used to render log entry message
-type MessageFormatter func(io.Writer, string)
+type MessageFormatter func(*bytes.Buffer, string)
 
 // Encoder is zap.Encoder implementation that writes plain text messages
 type Encoder struct {
 	timeF    TimeFormatter
 	levelF   LevelFormatter
 	messageF MessageFormatter
-	bytes    []byte
+	buffer   *bytes.Buffer
 }
 
 // New ...
 func New(options ...Option) zap.Encoder {
-	enc := &Encoder{}
+	enc := &Encoder{buffer: bytes.NewBuffer([]byte{})}
 	ShortTime().Apply(enc)
 	SimpleLevel().Apply(enc)
 	SimpleMessage().Apply(enc)
@@ -61,6 +62,7 @@ func (enc *Encoder) Clone() zap.Encoder {
 		timeF:    enc.timeF,
 		levelF:   enc.levelF,
 		messageF: enc.messageF,
+		buffer:   bytes.NewBuffer([]byte{}),
 	}
 }
 
@@ -70,40 +72,35 @@ func (enc *Encoder) Free() {
 }
 
 // WriteEntry ...
-func (enc *Encoder) WriteEntry(sink io.Writer, message string, level zap.Level, time time.Time) error {
-	enc.timeF(sink, time)
-	enc.levelF(sink, level)
-	enc.messageF(sink, message)
-	sink.Write(enc.bytes)
-	sink.Write([]byte{'\n'})
+func (enc *Encoder) WriteEntry(w io.Writer, message string, level zap.Level, time time.Time) error {
+	buffer := bytes.NewBuffer([]byte{})
+	enc.timeF(buffer, time)
+	enc.levelF(buffer, level)
+	enc.messageF(buffer, message)
+	enc.buffer.WriteTo(buffer)
+	buffer.Write([]byte{'\n'})
+	buffer.WriteTo(w)
 	return nil
 }
 
-func (enc *Encoder) appendKey(key string) {
-	if len(enc.bytes) > 0 {
-		enc.bytes = append(enc.bytes, ' ')
+func (enc *Encoder) writeKey(key string) {
+	if enc.buffer.Len() > 0 {
+		enc.buffer.WriteString(" ")
 	}
-	enc.bytes = append(enc.bytes, key...)
-	enc.bytes = append(enc.bytes, '=')
+	enc.buffer.WriteString(key)
+	enc.buffer.WriteString("=")
 }
 
 // AddString ...
 func (enc *Encoder) AddString(key, value string) {
-	enc.appendKey(key)
-	enc.bytes = append(enc.bytes, value...)
+	enc.writeKey(key)
+	enc.buffer.WriteString(value)
 }
 
 // AddBool ...
 func (enc *Encoder) AddBool(key string, value bool) {
-	enc.appendKey(key)
-	switch value {
-	case true:
-		enc.bytes = append(enc.bytes, "true"...)
-	case false:
-		enc.bytes = append(enc.bytes, "false"...)
-	default:
-		panic("huh?")
-	}
+	enc.writeKey(key)
+	enc.buffer.WriteString(strconv.FormatBool(value))
 }
 
 // AddInt ...
@@ -113,8 +110,8 @@ func (enc *Encoder) AddInt(key string, value int) {
 
 // AddInt64 ...
 func (enc *Encoder) AddInt64(key string, value int64) {
-	enc.appendKey(key)
-	enc.bytes = strconv.AppendInt(enc.bytes, value, 10)
+	enc.writeKey(key)
+	enc.buffer.WriteString(strconv.FormatInt(value, 10))
 }
 
 // AddUint ...
@@ -124,22 +121,22 @@ func (enc *Encoder) AddUint(key string, value uint) {
 
 // AddUint64 ...
 func (enc *Encoder) AddUint64(key string, value uint64) {
-	enc.appendKey(key)
-	enc.bytes = strconv.AppendUint(enc.bytes, value, 10)
+	enc.writeKey(key)
+	enc.buffer.WriteString(strconv.FormatUint(value, 10))
 }
 
 // AddFloat64 ...
 func (enc *Encoder) AddFloat64(key string, value float64) {
-	enc.appendKey(key)
+	enc.writeKey(key)
 	switch {
 	case math.IsNaN(value):
-		enc.bytes = append(enc.bytes, `"NaN"`...)
+		enc.buffer.WriteString("NaN")
 	case math.IsInf(value, 1):
-		enc.bytes = append(enc.bytes, `"+Inf"`...)
+		enc.buffer.WriteString("+Inf")
 	case math.IsInf(value, -1):
-		enc.bytes = append(enc.bytes, `"-Inf"`...)
+		enc.buffer.WriteString("-Inf")
 	default:
-		enc.bytes = strconv.AppendFloat(enc.bytes, value, 'f', -1, 64)
+		enc.buffer.WriteString(strconv.FormatFloat(value, 'f', -1, 64))
 	}
 }
 

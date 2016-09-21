@@ -1,8 +1,8 @@
 package zaptextenc
 
 import (
+	"bytes"
 	"fmt"
-	"io"
 
 	"github.com/mgutz/ansi"
 	"github.com/uber-go/zap"
@@ -22,7 +22,7 @@ func (f LevelMapFormatterOption) Apply(e *Encoder) {
 }
 
 func (f LevelMapFormatterOption) formatter() LevelFormatter {
-	return func(w io.Writer, level zap.Level) {
+	return func(w *bytes.Buffer, level zap.Level) {
 		var (
 			str   string
 			found bool
@@ -31,7 +31,7 @@ func (f LevelMapFormatterOption) formatter() LevelFormatter {
 		if !found {
 			panic(fmt.Sprintf("unknown log level: %v", level))
 		}
-		io.WriteString(w, str)
+		w.WriteString(str)
 	}
 }
 
@@ -91,7 +91,7 @@ type NoLevelFormatterOption struct{}
 
 // Apply sets level formatter for an encoder
 func (f NoLevelFormatterOption) Apply(e *Encoder) {
-	e.setLevelFormatter(func(_ io.Writer, _ zap.Level) {})
+	e.setLevelFormatter(func(_ *bytes.Buffer, _ zap.Level) {})
 }
 
 // NoLevel skips log level

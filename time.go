@@ -1,7 +1,7 @@
 package zaptextenc
 
 import (
-	"io"
+	"bytes"
 	"time"
 )
 
@@ -16,8 +16,8 @@ func (f LayoutTimeFormatterOption) Apply(e *Encoder) {
 }
 
 func (f LayoutTimeFormatterOption) formatter() TimeFormatter {
-	return func(w io.Writer, t time.Time) {
-		io.WriteString(w, t.Local().Format(f.layout))
+	return func(w *bytes.Buffer, t time.Time) {
+		w.WriteString(t.Local().Format(f.layout))
 		w.Write([]byte{' '})
 	}
 }
@@ -37,7 +37,7 @@ type NoTimeFormatterOption struct{}
 
 // Apply sets level formatter for an encoder
 func (f NoTimeFormatterOption) Apply(e *Encoder) {
-	e.setTimeFormatter(func(_ io.Writer, _ time.Time) {})
+	e.setTimeFormatter(func(_ *bytes.Buffer, _ time.Time) {})
 }
 
 // NoTime skips log entry time

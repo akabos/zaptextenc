@@ -1,9 +1,6 @@
 package zaptextenc
 
-import (
-	"bytes"
-	"io"
-)
+import "bytes"
 
 //
 // Simple
@@ -18,8 +15,8 @@ func (f SimpleMessageFormatterOption) Apply(e *Encoder) {
 }
 
 func (f SimpleMessageFormatterOption) formatter() MessageFormatter {
-	return func(w io.Writer, message string) {
-		io.WriteString(w, message)
+	return func(w *bytes.Buffer, message string) {
+		w.WriteString(message)
 		w.Write([]byte{' '})
 	}
 }
@@ -44,17 +41,14 @@ func (f FixedWidthMessageFormatterOption) Apply(e *Encoder) {
 }
 
 func (f FixedWidthMessageFormatterOption) formatter() MessageFormatter {
-	return func(w io.Writer, message string) {
-		result := make([]byte, f.width)
+	return func(w *bytes.Buffer, message string) {
 		if len(message) < f.width {
 			extra := f.width - len(message)
-			result = append(result, []byte(message)...)
-			result = append(result, bytes.Repeat([]byte(" "), extra)...)
+			w.Write(bytes.Repeat([]byte(" "), extra))
 		} else {
-			result = append(result, []byte(message[:f.width])...)
+			w.WriteString(message[:f.width])
 		}
-		w.Write(result)
-		w.Write([]byte{' '})
+		w.Write([]byte(" "))
 	}
 }
 
