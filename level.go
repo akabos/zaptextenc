@@ -19,8 +19,8 @@ func (f LevelMapFormatterOption) Apply(e *Encoder) {
 }
 
 func (f LevelMapFormatterOption) formatter() LevelFormatter {
-	return func(b []byte, level zap.Level) {
-		b = append(b, f.levelMap[level]...)
+	return func(b *Buffer, level zap.Level) {
+		b.Append(f.levelMap[level]...)
 	}
 }
 
@@ -80,7 +80,7 @@ type NoLevelFormatterOption struct{}
 
 // Apply sets level formatter for an encoder
 func (f NoLevelFormatterOption) Apply(e *Encoder) {
-	e.setLevelFormatter(func(_ []byte, _ zap.Level) {})
+	e.setLevelFormatter(func(_ *Buffer, _ zap.Level) {})
 }
 
 // NoLevel skips log level

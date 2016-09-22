@@ -13,9 +13,9 @@ func (f LayoutTimeFormatterOption) Apply(e *Encoder) {
 }
 
 func (f LayoutTimeFormatterOption) formatter() TimeFormatter {
-	return func(buff []byte, t time.Time) {
-		buff = append(buff, []byte(t.Local().Format(f.layout))...)
-		buff = append(buff, ' ')
+	return func(b *Buffer, t time.Time) {
+		b.AppendString(t.Local().Format(f.layout))
+		b.Append(' ')
 	}
 }
 
@@ -34,7 +34,7 @@ type NoTimeFormatterOption struct{}
 
 // Apply sets level formatter for an encoder
 func (f NoTimeFormatterOption) Apply(e *Encoder) {
-	e.setTimeFormatter(func(_ []byte, _ time.Time) {})
+	e.setTimeFormatter(func(_ *Buffer, _ time.Time) {})
 }
 
 // NoTime skips log entry time

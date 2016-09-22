@@ -10,43 +10,42 @@ import (
 	"github.com/uber-go/zap"
 )
 
-var pool = sync.Pool{New: func() interface{} {
-	return &Encoder{
-		// Pre-allocate some capacity to avoid allocations
-		fields: make([]byte, 512),
-		prefix: make([]byte, 512),
-		output: make([]byte, 1024),
-	}
-}}
-
 // Option is an Encoder option
 type Option interface {
 	Apply(*Encoder)
 }
 
 // TimeFormatter is a func used to render log entry time
-type TimeFormatter func([]byte, time.Time)
+type TimeFormatter func(*Buffer, time.Time)
 
 // LevelFormatter is a func used to render log entry level
-type LevelFormatter func([]byte, zap.Level)
+type LevelFormatter func(*Buffer, zap.Level)
 
 // MessageFormatter is a func used to render log entry message
-type MessageFormatter func([]byte, string)
+type MessageFormatter func(*Buffer, string)
 
 // Encoder is zap.Encoder implementation that writes plain text messages
 type Encoder struct {
 	timeF    TimeFormatter
 	levelF   LevelFormatter
 	messageF MessageFormatter
-	fields   []byte
-	prefix   []byte
-	output   []byte
+	fields   *Buffer
+	prefix   *Buffer
+	output   *Buffer
 }
+
+var pool = sync.Pool{New: func() interface{} {
+	return &Encoder{
+		fields: NewBuffer(512),
+		prefix: NewBuffer(512),
+		output: NewBuffer(1024),
+	}
+}}
 
 // New ...
 func New(options ...Option) zap.Encoder {
 	enc := pool.Get().(*Encoder)
-	enc.truncate()
+	enc.reset()
 	ShortTime().Apply(enc)
 	SimpleLevel().Apply(enc)
 	SimpleMessage().Apply(enc)
@@ -68,19 +67,20 @@ func (enc *Encoder) setMessageFormatter(f MessageFormatter) {
 	enc.messageF = f
 }
 
-func (enc *Encoder) truncate() {
-	enc.fields = enc.fields[:0]
-	enc.prefix = enc.prefix[:0]
-	enc.output = enc.output[:0]
+func (enc *Encoder) reset() {
+	enc.fields.Reset()
+	enc.prefix.Reset()
+	enc.output.Reset()
 }
 
 // Clone ...
 func (enc *Encoder) Clone() zap.Encoder {
 	clone := pool.Get().(*Encoder)
-	clone.truncate()
-	clone.fields = append(clone.fields, enc.fields...)
-	clone.prefix = append(clone.prefix, enc.prefix...)
-	clone.output = append(clone.output, enc.output...)
+
+	clone.reset()
+	clone.fields.Append(enc.fields.Bytes()...)
+	clone.prefix.Append(enc.prefix.Bytes()...)
+	clone.output.Append(enc.output.Bytes()...)
 
 	clone.timeF = enc.timeF
 	clone.levelF = enc.levelF
@@ -99,31 +99,31 @@ func (enc *Encoder) WriteEntry(w io.Writer, message string, level zap.Level, tim
 	enc.timeF(enc.prefix, time)
 	enc.levelF(enc.prefix, level)
 	enc.messageF(enc.prefix, message)
-	enc.output = append(enc.output, enc.prefix...)
-	enc.output = append(enc.output, enc.fields...)
-	enc.output = append(enc.output, '\n')
-	w.Write(enc.output)
-	return nil
+	enc.output.Append(enc.prefix.Bytes()...)
+	enc.output.Append(enc.fields.Bytes()...)
+	enc.output.Append('\n')
+	_, err := w.Write(enc.output.Bytes())
+	return err
 }
 
 func (enc *Encoder) writeKey(key string) {
-	if len(enc.fields) > 0 {
-		enc.fields = append(enc.fields, ' ')
+	if enc.fields.Len() > 0 {
+		enc.fields.Append(' ')
 	}
-	enc.fields = append(enc.fields, []byte(key)...)
-	enc.fields = append(enc.fields, '=')
+	enc.fields.AppendString(key)
+	enc.fields.Append('=')
 }
 
 // AddString ...
 func (enc *Encoder) AddString(key, value string) {
 	enc.writeKey(key)
-	enc.fields = append(enc.fields, value...)
+	enc.fields.AppendString(value)
 }
 
 // AddBool ...
 func (enc *Encoder) AddBool(key string, value bool) {
 	enc.writeKey(key)
-	strconv.AppendBool(enc.fields, value)
+	strconv.AppendBool(enc.fields.bytes, value)
 }
 
 // AddInt ...
@@ -134,7 +134,7 @@ func (enc *Encoder) AddInt(key string, value int) {
 // AddInt64 ...
 func (enc *Encoder) AddInt64(key string, value int64) {
 	enc.writeKey(key)
-	strconv.AppendInt(enc.fields, value, 10)
+	enc.fields.Set(strconv.AppendInt(enc.fields.Bytes(), value, 10))
 }
 
 // AddUint ...
@@ -145,7 +145,7 @@ func (enc *Encoder) AddUint(key string, value uint) {
 // AddUint64 ...
 func (enc *Encoder) AddUint64(key string, value uint64) {
 	enc.writeKey(key)
-	strconv.AppendUint(enc.fields, value, 10)
+	enc.fields.Set(strconv.AppendUint(enc.fields.Bytes(), value, 10))
 }
 
 // AddFloat64 ...
@@ -153,13 +153,13 @@ func (enc *Encoder) AddFloat64(key string, value float64) {
 	enc.writeKey(key)
 	switch {
 	case math.IsNaN(value):
-		enc.fields = append(enc.fields, []byte("NaN")...)
+		enc.fields.AppendString("NaN")
 	case math.IsInf(value, 1):
-		enc.fields = append(enc.fields, []byte("+Inf")...)
+		enc.fields.AppendString("+Inf")
 	case math.IsInf(value, -1):
-		enc.fields = append(enc.fields, []byte("-Inf")...)
+		enc.fields.AppendString("-Inf")
 	default:
-		strconv.AppendFloat(enc.fields, value, 'f', -1, 64)
+		enc.fields.Set(strconv.AppendFloat(enc.fields.bytes, value, 'f', -1, 64))
 	}
 }
 
