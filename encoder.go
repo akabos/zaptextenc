@@ -5,10 +5,17 @@ import (
 	"io"
 	"math"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/uber-go/zap"
 )
+
+var pool = sync.Pool{New: func() interface{} {
+	return &Encoder{
+		buffer: bytes.NewBuffer([]byte{}),
+	}
+}}
 
 // Option is an Encoder option
 type Option interface {
@@ -34,7 +41,8 @@ type Encoder struct {
 
 // New ...
 func New(options ...Option) zap.Encoder {
-	enc := &Encoder{buffer: bytes.NewBuffer([]byte{})}
+	enc := pool.Get().(*Encoder)
+	enc.buffer.Reset()
 	ShortTime().Apply(enc)
 	SimpleLevel().Apply(enc)
 	SimpleMessage().Apply(enc)
@@ -58,17 +66,18 @@ func (enc *Encoder) setMessageFormatter(f MessageFormatter) {
 
 // Clone ...
 func (enc *Encoder) Clone() zap.Encoder {
-	return &Encoder{
-		timeF:    enc.timeF,
-		levelF:   enc.levelF,
-		messageF: enc.messageF,
-		buffer:   bytes.NewBuffer([]byte{}),
-	}
+	clone := pool.Get().(*Encoder)
+	clone.timeF = enc.timeF
+	clone.levelF = enc.levelF
+	clone.messageF = enc.messageF
+	clone.buffer.Reset()
+	enc.buffer.WriteTo(clone.buffer)
+	return clone
 }
 
 // Free ...
 func (enc *Encoder) Free() {
-	// noop
+	pool.Put(enc)
 }
 
 // WriteEntry ...
