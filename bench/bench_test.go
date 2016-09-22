@@ -68,12 +68,12 @@ func BenchmarkText10Fields(b *testing.B) {
 }
 
 func BenchmarkTextFixedSimple(b *testing.B) {
-	encoder := zaptextenc.New(zaptextenc.FixedWidthMessage(3))
+	encoder := zaptextenc.New(zaptextenc.FixedWidthMessage(100))
 	runSimpleWithEncoder(b, &encoder)
 }
 
 func BenchmarkTextFixed10Fields(b *testing.B) {
-	encoder := zaptextenc.New(zaptextenc.FixedWidthMessage(3))
+	encoder := zaptextenc.New(zaptextenc.FixedWidthMessage(100))
 	run10FieldsWithEncoder(b, &encoder)
 }
 
