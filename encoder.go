@@ -46,7 +46,7 @@ var pool = sync.Pool{New: func() interface{} {
 func New(options ...Option) zap.Encoder {
 	enc := pool.Get().(*Encoder)
 	enc.reset()
-	ShortTime().Apply(enc)
+	UnixTime().Apply(enc)
 	SimpleLevel().Apply(enc)
 	SimpleMessage().Apply(enc)
 	for _, opt := range options {
