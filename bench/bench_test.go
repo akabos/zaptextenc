@@ -48,21 +48,41 @@ func run10FieldsWithEncoder(b *testing.B, encoder *zap.Encoder) {
 }
 
 func BenchmarkJSONSimple(b *testing.B) {
-	encoder := zap.NewJSONEncoder(zap.NoTime())
+	encoder := zap.NewJSONEncoder()
 	runSimpleWithEncoder(b, &encoder)
 }
 
 func BenchmarkJSON10Fields(b *testing.B) {
-	encoder := zap.NewJSONEncoder(zap.NoTime())
+	encoder := zap.NewJSONEncoder()
 	run10FieldsWithEncoder(b, &encoder)
 }
 
 func BenchmarkTextSimple(b *testing.B) {
-	encoder := zaptextenc.New(zaptextenc.NoTime())
+	encoder := zaptextenc.New()
 	runSimpleWithEncoder(b, &encoder)
 }
 
 func BenchmarkText10Fields(b *testing.B) {
-	encoder := zaptextenc.New(zaptextenc.NoTime())
+	encoder := zaptextenc.New()
+	run10FieldsWithEncoder(b, &encoder)
+}
+
+func BenchmarkTextFixedSimple(b *testing.B) {
+	encoder := zaptextenc.New(zaptextenc.FixedWidthMessage(3))
+	runSimpleWithEncoder(b, &encoder)
+}
+
+func BenchmarkTextFixed10Fields(b *testing.B) {
+	encoder := zaptextenc.New(zaptextenc.FixedWidthMessage(3))
+	run10FieldsWithEncoder(b, &encoder)
+}
+
+func BenchmarkTextTimeSimple(b *testing.B) {
+	encoder := zaptextenc.New(zaptextenc.RFC3339Time())
+	runSimpleWithEncoder(b, &encoder)
+}
+
+func BenchmarkTextTime10Fields(b *testing.B) {
+	encoder := zaptextenc.New(zaptextenc.RFC3339Time())
 	run10FieldsWithEncoder(b, &encoder)
 }
