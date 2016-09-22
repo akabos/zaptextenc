@@ -1,4 +1,4 @@
-# :zap: zap-text
+# :zap: zaptextenc
 
 Text encoder for blazing fast, structured, leveled logging in Go.
 
