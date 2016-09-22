@@ -1,15 +1,12 @@
 package zaptextenc
 
 import (
-	"bytes"
-	"fmt"
-
 	"github.com/mgutz/ansi"
 	"github.com/uber-go/zap"
 )
 
 // LevelMap defines a mapping between log level and it's representation
-type LevelMap map[zap.Level]string
+type LevelMap map[zap.Level][]byte
 
 // LevelMapFormatterOption is an option for level formatting according to a mapping
 type LevelMapFormatterOption struct {
@@ -22,26 +19,18 @@ func (f LevelMapFormatterOption) Apply(e *Encoder) {
 }
 
 func (f LevelMapFormatterOption) formatter() LevelFormatter {
-	return func(w *bytes.Buffer, level zap.Level) {
-		var (
-			str   string
-			found bool
-		)
-		str, found = f.levelMap[level]
-		if !found {
-			panic(fmt.Sprintf("unknown log level: %v", level))
-		}
-		w.WriteString(str)
+	return func(b []byte, level zap.Level) {
+		b = append(b, f.levelMap[level]...)
 	}
 }
 
 var simpleLevelMap = LevelMap{
-	zap.DebugLevel: "DEBUG ",
-	zap.InfoLevel:  "INFO  ",
-	zap.WarnLevel:  "WARN  ",
-	zap.ErrorLevel: "ERROR ",
-	zap.PanicLevel: "PANIC ",
-	zap.FatalLevel: "FATAL ",
+	zap.DebugLevel: []byte("DEBUG "),
+	zap.InfoLevel:  []byte("INFO  "),
+	zap.WarnLevel:  []byte("WARN  "),
+	zap.ErrorLevel: []byte("ERROR "),
+	zap.PanicLevel: []byte("PANIC "),
+	zap.FatalLevel: []byte("FATAL "),
 }
 
 // SimpleLevel formats log level in most dull and unfancy way possible
@@ -49,13 +38,13 @@ func SimpleLevel() Option {
 	return &LevelMapFormatterOption{simpleLevelMap}
 }
 
-var abbrLevelMap = map[zap.Level]string{
-	zap.DebugLevel: "DEB ",
-	zap.InfoLevel:  "INF ",
-	zap.WarnLevel:  "WRN ",
-	zap.ErrorLevel: "ERR ",
-	zap.PanicLevel: "PAN ",
-	zap.FatalLevel: "FAT ",
+var abbrLevelMap = LevelMap{
+	zap.DebugLevel: []byte("DEB "),
+	zap.InfoLevel:  []byte("INF "),
+	zap.WarnLevel:  []byte("WRN "),
+	zap.ErrorLevel: []byte("ERR "),
+	zap.PanicLevel: []byte("PAN "),
+	zap.FatalLevel: []byte("FAT "),
 }
 
 // AbbrLevel formats log level as 3-letter abbreviation
@@ -73,12 +62,12 @@ var (
 )
 
 var simpleColorLevelMap = LevelMap{
-	zap.DebugLevel: debugColor("DEBUG "),
-	zap.InfoLevel:  infoColor("INFO  "),
-	zap.WarnLevel:  warnColor("WARN  "),
-	zap.ErrorLevel: errorColor("ERROR "),
-	zap.PanicLevel: panicColor("PANIC "),
-	zap.FatalLevel: fatalColor("FATAL "),
+	zap.DebugLevel: []byte(debugColor("DEBUG ")),
+	zap.InfoLevel:  []byte(infoColor("INFO  ")),
+	zap.WarnLevel:  []byte(warnColor("WARN  ")),
+	zap.ErrorLevel: []byte(errorColor("ERROR ")),
+	zap.PanicLevel: []byte(panicColor("PANIC ")),
+	zap.FatalLevel: []byte(fatalColor("FATAL ")),
 }
 
 // SimpleColorLevel formats log level as colored level names
@@ -91,7 +80,7 @@ type NoLevelFormatterOption struct{}
 
 // Apply sets level formatter for an encoder
 func (f NoLevelFormatterOption) Apply(e *Encoder) {
-	e.setLevelFormatter(func(_ *bytes.Buffer, _ zap.Level) {})
+	e.setLevelFormatter(func(_ []byte, _ zap.Level) {})
 }
 
 // NoLevel skips log level

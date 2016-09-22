@@ -15,9 +15,9 @@ func (f SimpleMessageFormatterOption) Apply(e *Encoder) {
 }
 
 func (f SimpleMessageFormatterOption) formatter() MessageFormatter {
-	return func(w *bytes.Buffer, message string) {
-		w.WriteString(message)
-		w.Write([]byte{' '})
+	return func(buff []byte, message string) {
+		buff = append(buff, message...)
+		buff = append(buff, ' ')
 	}
 }
 
@@ -41,14 +41,14 @@ func (f FixedWidthMessageFormatterOption) Apply(e *Encoder) {
 }
 
 func (f FixedWidthMessageFormatterOption) formatter() MessageFormatter {
-	return func(w *bytes.Buffer, message string) {
+	return func(buff []byte, message string) {
 		if len(message) < f.width {
-			extra := f.width - len(message)
-			w.Write(bytes.Repeat([]byte(" "), extra))
+			buff = append(buff, message...)
+			buff = append(buff, bytes.Repeat([]byte{'\n'}, (f.width-len(message)))...)
 		} else {
-			w.WriteString(message[:f.width])
+			buff = append(buff, message[:f.width]...)
 		}
-		w.Write([]byte(" "))
+		buff = append(buff, ' ')
 	}
 }
 

@@ -1,9 +1,6 @@
 package zaptextenc
 
-import (
-	"bytes"
-	"time"
-)
+import "time"
 
 // LayoutTimeFormatterOption is an option for log entry time formatting according to specified layout
 type LayoutTimeFormatterOption struct {
@@ -16,9 +13,9 @@ func (f LayoutTimeFormatterOption) Apply(e *Encoder) {
 }
 
 func (f LayoutTimeFormatterOption) formatter() TimeFormatter {
-	return func(w *bytes.Buffer, t time.Time) {
-		w.WriteString(t.Local().Format(f.layout))
-		w.Write([]byte{' '})
+	return func(buff []byte, t time.Time) {
+		buff = append(buff, []byte(t.Local().Format(f.layout))...)
+		buff = append(buff, ' ')
 	}
 }
 
@@ -37,7 +34,7 @@ type NoTimeFormatterOption struct{}
 
 // Apply sets level formatter for an encoder
 func (f NoTimeFormatterOption) Apply(e *Encoder) {
-	e.setTimeFormatter(func(_ *bytes.Buffer, _ time.Time) {})
+	e.setTimeFormatter(func(_ []byte, _ time.Time) {})
 }
 
 // NoTime skips log entry time
